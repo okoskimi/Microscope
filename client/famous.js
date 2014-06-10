@@ -1,6 +1,6 @@
 
-/*
-require("famous-polyfills"); // Add polyfills
+
+require("famousPolyfills"); // Add polyfills
 require("famous/core/famous"); // Add the default css file
 
 Application = null;
@@ -39,10 +39,11 @@ Meteor.startup(function () {
         size: [undefined, undefined],
         lightboxOpts: {
             size: [undefined, undefined],
-            inTransition: {curve: 'easeIn', duration: 300},
-            inOrigin: [0, 0],
+            inTransition: {curve: 'easeIn', duration: 1000},
+            outTransition: {curve: 'easeOut', duration: 1000},
+            inOrigin: [-0.5, 0.5],
             showOrigin: [0, 0],
-            outOrigin: [0, 0]
+            outOrigin: [0.5, 0.5]
         },
         properties: {
             backgroundColor: 'green'
@@ -140,12 +141,9 @@ Meteor.startup(function () {
 
     // setup famous sections from templates
     _.each(Router.routes, function(route) {
-        // route.action = lightboxAction;
-        route.action = function() {
-            console.log("Rendering: ", this.render());
-        }
+        route.action = lightboxAction;
+
     });
 
 });
 
-*/

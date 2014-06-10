@@ -12,3 +12,4 @@ Template.postsList.helpers({
     return rval;
   }
 });
+

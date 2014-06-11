@@ -18,6 +18,7 @@ define('AppView', [], function(require, exports, module) {
     function AppView() {
         View.apply(this, arguments);
 
+        console.log("Created appview with options: ", this.options);
         _createCamera.call(this);
         _createSlideshow.call(this);
     }
@@ -55,7 +56,7 @@ define('AppView', [], function(require, exports, module) {
     function _createSlideshow() {
         var slideshowView = new SlideshowView({
             size: [this.options.slideWidth, this.options.slideHeight],
-            data: this.options.data
+            template: this.options.template
         });
 
         var slideshowModifier = new StateModifier({

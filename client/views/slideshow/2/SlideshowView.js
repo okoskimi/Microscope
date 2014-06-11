@@ -16,16 +16,35 @@ define('SlideshowView', [], function(require, exports, module) {
     function SlideshowView() {
         View.apply(this, arguments);
 
+        console.log("Created slideshowview with options: ", this.options);
+
+
         this.rootModifier = new StateModifier({
             size: this.options.size,
             origin: [0.5, 0],
             align: [0.5, 0]
         });
 
+        var that = this;
+
         this.mainNode = this.add(this.rootModifier);
 
         _createLightbox.call(this);
-        _createSlides.call(this);
+
+        //_createSlides.call(this);
+
+        Deps.autorun(function() {
+            var slide = new SlideView({
+                size: that.options.size,
+                template: that.options.template,
+                data: Posts.find({}).fetch()[0] // There is only post in this route
+            });
+            that.lightbox.show(slide, function() {
+                that.ready = true;
+                slide.fadeIn();
+            }.bind(that));
+        });
+
     }
 
     SlideshowView.prototype = Object.create(View.prototype);
@@ -51,6 +70,7 @@ define('SlideshowView', [], function(require, exports, module) {
         this.lightbox = new Lightbox(this.options.lightboxOpts);
         this.mainNode.add(this.lightbox);
     }
+    /*
 
     function _createSlides() {
         this.slides = [];
@@ -69,7 +89,6 @@ define('SlideshowView', [], function(require, exports, module) {
 
         this.showCurrentSlide();
     }
-
     SlideshowView.prototype.showCurrentSlide = function() {
         this.ready = false;
 
@@ -87,6 +106,6 @@ define('SlideshowView', [], function(require, exports, module) {
         if (this.currentIndex === this.slides.length) this.currentIndex = 0;
         this.showCurrentSlide();
     };
-
+*/
     module.exports = SlideshowView;
 });

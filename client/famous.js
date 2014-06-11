@@ -3,145 +3,109 @@
 require("famousPolyfills"); // Add polyfills
 require("famous/core/famous"); // Add the default css file
 
-Application = null;
-var Application_show = null;
+
 
 Meteor.startup(function () {
-    var mainContextId = "famous-main-context";
     var templateSurfaceHeightFix = 60;
-
     var Engine = require("famous/core/Engine");
-    var View = require("famous/core/View");
-    var ContainerSurface = require('famous/surfaces/ContainerSurface');
     var Scrollview = require("famous/views/Scrollview");
     var Surface = require("famous/core/Surface");
-    var Lightbox = require("famous/views/Lightbox");
+    var LightboxLayout = require("LightboxLayout");
+    var RenderControllerLayout = require("RenderControllerLayout");
 
-    function AppView() {
-        View.apply(this, arguments);
-
-        this.container = new ContainerSurface({
-            properties: {
-                overflow: 'hidden'
-            }
-        });
-        this.add(this.container);
-
-        this.lightbox = new Lightbox(this.options.lightboxOpts);
-        this.container.add(this.lightbox);
-        this._eventInput.pipe(this.lightbox);
-    }
-
-    AppView.prototype = Object.create(View.prototype);
-    AppView.prototype.constructor = AppView;
-
-    AppView.DEFAULT_OPTIONS = {
-        size: [undefined, undefined],
-        lightboxOpts: {
-            size: [undefined, undefined],
-            inTransition: {curve: 'easeIn', duration: 1000},
-            outTransition: {curve: 'easeOut', duration: 1000},
-            inOrigin: [-0.5, 0.5],
-            showOrigin: [0, 0],
-            outOrigin: [0.5, 0.5]
-        },
-        properties: {
-            backgroundColor: 'green'
-        }
-    };
-
-    AppView.prototype.show = function (renderable) {
-        this.lightbox.show(renderable);
-    };
-
-
+    var _layout = null;
+    var _transitions = {};
+    var _defaultTransition = {};
+    var _views = [];
 
     Template.famousYield.rendered = function() {
-        if (! Application) {
+        if (! _layout) {
             console.log("Famous yield: ", this);
             console.log("Root element: ", this.firstNode);
             var rootWidth = $(this.firstNode).width();
             var rootHeight = $(this.firstNode).height();
             console.log("Root element size: ", rootWidth, rootHeight);
-            Application = new AppView({
+            _layout = new /* RenderControllerLayout({ */ LightboxLayout({
                 size: [rootWidth, rootHeight]
             });
+            _defaultTransition = _layout.getOptions().layoutOpts;
             var mainContext = Engine.createContext(this.firstNode);
-            mainContext.add(Application);
+            mainContext.add(_layout);
             mainContext.setPerspective(1000);
-            Engine.pipe(Application);
+            Engine.pipe(_layout);
         }
     }
 
-
-    var templateSurfaces = [];
-    var views = [];
-
-    function lightboxAction() {
-        console.log("Lightboxaction: ", this);
+    function layoutAction() {
+        console.log("layoutAction: ", this);
         var templateName = this.router._currentController.lookupTemplate();
         var viewName = this.router._currentController.lookupProperty('view');
+        var newTransitions = this.router._currentController.lookupProperty('transitions') || {};
         var data = this.data();
-        var dataFunc = this.data;
-        Deps.autorun(function() {
-            console.log("Data is now: ", dataFunc());
-        });
         console.log("Handling route " + this.route.name);
         console.log("Data: ", data);
         console.log("Template: ", templateName);
         console.log("View: ", viewName);
-        if (viewName) {
-            var view = views[viewName];
-            if (! view) {
+        console.log("Layout view: ", this.router._currentController.lookupProperty('layoutView'));
+        var view = _views[this.path];
+        if (! view) {
+            if (viewName) {
                 var viewConstructor = require(viewName);
                 if (viewConstructor) {
-                    console.log("Instantiating view");
-                    view = views[viewName] = new viewConstructor(this.route.options.viewOptions || {});
+                    console.log("Instantiating custom view");
+                    view = _views[this.path] = new viewConstructor(_.extend({
+                        template: templateName
+                    }, this.route.options.viewOptions || {}));
                 }
-            }
-            if (view) {
-                console.log("Showing view...");
-                Application.show(view);
             } else {
-                throw new Error("Unable to instantiate view: " + viewName);
+                console.log("Instantiating Scrollview and Surface");
+                view = _views[this.path] = new Scrollview();
+                view.templateSurface = new Surface();
+                view.sequenceFrom([ view.templateSurface ]);
+                view.templateSurface.pipe(view);
             }
-        } else {
-            var scrollview = templateSurfaces[templateName];
-            if (!scrollview) {
-                    console.log("Instantiating Scrollview and Surface");
-                    scrollview = templateSurfaces[templateName] = new Scrollview();
-
-                    scrollview.templateSurface = new Surface();
-                    console.log("Instantiating scrollview");
-                    scrollview.sequenceFrom([ scrollview.templateSurface ]);
-                    scrollview.templateSurface.pipe(scrollview);
-
-            }
-            if (scrollview.templateRoot) {
-                $(scrollview.templateRoot).remove();
-            }
-            scrollview.templateRoot = document.createElement('div');
-            UI.insert(UI.renderWithData(Template[templateName], data), scrollview.templateRoot);
-            scrollview.templateSurface.setContent(scrollview.templateRoot);
-            Meteor.defer(function() {
-                console.log("Showing template surface:", scrollview.templateRoot);
-                console.log("Defer: Setting template surface height to " + scrollview.templateRoot.offsetHeight + "px");
-                scrollview.templateSurface.setContent(scrollview.templateRoot);
-                scrollview.templateSurface.setSize([
-                    undefined, scrollview.templateRoot.offsetHeight + templateSurfaceHeightFix
-                ]);
-            });
-            Application.show(scrollview);
-
-
-
         }
-
+        if (view.templateSurface) {
+            if (view.templateRoot) {
+                $(view.templateRoot).remove();
+            }
+            view.templateRoot = document.createElement('div');
+            UI.insert(UI.renderWithData(Template[templateName], data), view.templateRoot);
+            view.templateSurface.setContent(view.templateRoot);
+        }
+        if (view) {
+            console.log("Showing view...");
+            if (_transitions[this.route.name]) {
+                console.log("Using custom transition: ", _transitions[this.route.name]);
+                _layout.setOptions( {
+                    layoutOpts: _transitions[this.route.name]
+                });
+            } else {
+                _layout.setOptions( {
+                    layoutOpts: _defaultTransition
+                })
+            }
+            _layout.show(view, function() {
+                if (view.templateSurface) {
+                    Meteor.defer(function() {
+                        console.log("Showing template surface:", view.templateRoot);
+                        console.log("Defer: Setting template surface height to " + view.templateRoot.offsetHeight + "px");
+                        view.templateSurface.setContent(view.templateRoot);
+                        view.templateSurface.setSize([
+                            undefined, view.templateRoot.offsetHeight + templateSurfaceHeightFix
+                        ]);
+                    });
+                }
+            });
+            _transitions = newTransitions;
+        } else {
+            throw new Error("Unable to instantiate view: " + viewName);
+        }
     }
 
     // setup famous sections from templates
     _.each(Router.routes, function(route) {
-        route.action = lightboxAction;
+        route.action = layoutAction;
 
     });
 

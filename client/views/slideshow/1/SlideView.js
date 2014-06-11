@@ -8,16 +8,18 @@ define('SlideView', [], function(require, exports, module) {
     var Surface = require('famous/core/Surface');
     var Transform = require('famous/core/Transform');
     var StateModifier = require('famous/modifiers/StateModifier');
-    //var ImageSurface = require('famous/surfaces/ImageSurface');
+    var ImageSurface = require('famous/surfaces/ImageSurface');
+    var TemplateSurface = require('TemplateSurface');
     var Transitionable   = require('famous/transitions/Transitionable');
     var SpringTransition = require('famous/transitions/SpringTransition');
 
     Transitionable.registerMethod('spring', SpringTransition);
 
-    var SlideData = require('SlideData');
-
     function SlideView() {
         View.apply(this, arguments);
+
+        console.log("Created slideview with options: ", this.options);
+
 
         this.rootModifier = new StateModifier({
             size: this.options.size
@@ -37,7 +39,7 @@ define('SlideView', [], function(require, exports, module) {
         size: [400, 450],
         filmBorder: 15,
         photoBorder: 3,
-        photoUrl: SlideData.defaultImage,
+        photoUrl: "/img/image-missing.png",
         angle: -0.5
     };
 
@@ -81,6 +83,7 @@ define('SlideView', [], function(require, exports, module) {
     function _createPhoto() {
         var size = this.options.filmSize - 2 * this.options.photoBorder;
 
+        /*
         var photo = new ImageSurface({
             size: [size, size],
             content: this.options.photoUrl,
@@ -89,6 +92,17 @@ define('SlideView', [], function(require, exports, module) {
                 pointerEvents: 'none'
             }
         });
+        */
+        console.log("Creating TemplateSurface");
+        var photo = new TemplateSurface({
+            size: [size, size],
+            template: this.options.template,
+            data: this.options.data,
+            properties: {
+                zIndex: 2
+            }
+        });
+        console.log("Created TemplateSurface");
 
         this.photoModifier = new StateModifier({
             origin: [0.5, 0],
